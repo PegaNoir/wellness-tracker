@@ -1,50 +1,252 @@
-function doPost(e) {
-  try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
-    
-    // Log what we received for debugging
-    Logger.log('Received data: ' + JSON.stringify(data));
-    
-    // Append the row data
-    sheet.appendRow(data.values[0]);
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      'result': 'success',
-      'row': sheet.getLastRow()
-    })).setMimeType(ContentService.MimeType.JSON);
-    
-  } catch(error) {
-    // Log the error for debugging
-    Logger.log('Error: ' + error.toString());
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      'result': 'error',
-      'error': error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doGet(e) {
-  return ContentService.createTextOutput("Health Context API is running");
-}
-
-// Test function to verify the script works
-function testDataFormat() {
-  var testData = {
-    values: [['2025-01-02', 'Yes', 'No', 'Yes', 'No', 'Yes', 'No', 'Yes', 'No', 'Yes', 'No', 'Yes', 'No', 'Yes', 'No', 'Yes']]
-  };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Health Context</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #000; color: #fff; }
+    .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .date { font-size: 14px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+    .nav { display: flex; gap: 10px; }
+    .nav-btn { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; }
+    .nav-btn:hover { background: #2a2a2a; }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; font-weight: 600; }
+    .metric-card { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .metric-label { font-size: 14px; color: #fff; margin-bottom: 10px; font-weight: 500; }
+    .toggle-group { display: flex; gap: 8px; }
+    .toggle-btn { flex: 1; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; cursor: pointer; font-size: 14px; color: #999; transition: all 0.2s; }
+    .toggle-btn.active { background: #00d46a; color: #000; border-color: #00d46a; font-weight: 600; }
+    .toggle-btn.active-no { background: #ff4444; color: #fff; border-color: #ff4444; }
+    .save-btn { width: 100%; padding: 16px; background: #00d46a; color: #000; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 20px; }
+    .save-btn:hover { background: #00e077; }
+    .history-item { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .history-date { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .history-data { font-size: 13px; color: #999; line-height: 1.6; }
+    .history-data span { color: #fff; }
+    .settings-section { margin-bottom: 24px; }
+    .settings-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 12px; }
+    .input-field { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; }
+    .primary-btn { width: 100%; padding: 12px; background: #00d46a; color: #000; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .secondary-btn { width: 100%; padding: 12px; background: #2a2a2a; color: #fff; border: 1px solid #333; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .status-badge { display: inline-block; padding: 4px 12px; background: #2a2a2a; border-radius: 12px; font-size: 12px; color: #00d46a; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
   
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.appendRow(testData.values[0]);
-  
-  Logger.log('Test row added successfully');
-}
+  <script>
+    const { useState, useEffect, createElement: h } = React;
+    
+    function HealthContext() {
+      const [entries, setEntries] = useState([]);
+      const [currentEntry, setCurrentEntry] = useState({});
+      const [view, setView] = useState('today');
+      const [googleSheetUrl, setGoogleSheetUrl] = useState('');
+      const [isConnected, setIsConnected] = useState(false);
 
-// Debug function to check what's in the sheet
-function checkSheet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var lastRow = sheet.getLastRow();
-  Logger.log('Sheet has ' + lastRow + ' rows');
-  Logger.log('Sheet name: ' + sheet.getName());
-}
+      const factors = {
+        sleep: [
+          { id: 'own_bed', label: 'Slept in own bed' },
+          { id: 'screen_before_bed', label: 'Screen time before sleep' },
+          { id: 'late_meal', label: 'Ate late (within 3h of sleep)' },
+          { id: 'sharing_bed', label: 'Shared bed' },
+        ],
+        recovery: [
+          { id: 'alcohol', label: 'Consumed alcohol' },
+          { id: 'caffeine_late', label: 'Caffeine after 2pm' },
+          { id: 'social_stress', label: 'Social/work stress' },
+          { id: 'illness', label: 'Felt sick/unwell' },
+        ],
+        activity: [
+          { id: 'intense_workout', label: 'High-intensity training' },
+          { id: 'stretching', label: 'Stretching/mobility work' },
+          { id: 'long_sitting', label: 'Mostly sedentary day' },
+        ],
+        wellbeing: [
+          { id: 'meditation', label: 'Meditation/breathing' },
+          { id: 'journaling', label: 'Journaling' },
+          { id: 'time_nature', label: 'Time outdoors' },
+          { id: 'social_connection', label: 'Quality social time' },
+        ]
+      };
+
+      useEffect(() => {
+        const saved = localStorage.getItem('healthContext');
+        if (saved) setEntries(JSON.parse(saved));
+        const savedUrl = localStorage.getItem('googleSheetUrl');
+        if (savedUrl) {
+          setGoogleSheetUrl(savedUrl);
+          setIsConnected(true);
+        }
+      }, []);
+
+      const getTodayKey = () => new Date().toISOString().split('T')[0];
+
+      const saveEntry = () => {
+        const today = getTodayKey();
+        const newEntry = { date: today, timestamp: new Date().toISOString(), ...currentEntry };
+        const updated = entries.filter(e => e.date !== today);
+        updated.push(newEntry);
+        setEntries(updated);
+        localStorage.setItem('healthContext', JSON.stringify(updated));
+        
+        if (isConnected && googleSheetUrl) {
+          const allFactors = Object.values(factors).flat();
+          const row = [today, ...allFactors.map(f => currentEntry[f.id] !== undefined ? (currentEntry[f.id] ? 'Yes' : 'No') : '')];
+          fetch(googleSheetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: [row] })
+          }).catch(console.error);
+        }
+        
+        setCurrentEntry({});
+        alert('Context saved');
+      };
+
+      const connectSheet = () => {
+        if (googleSheetUrl.trim()) {
+          localStorage.setItem('googleSheetUrl', googleSheetUrl);
+          setIsConnected(true);
+        }
+      };
+
+      const exportCSV = () => {
+        const allFactors = Object.values(factors).flat();
+        const headers = ['Date', ...allFactors.map(f => f.label)];
+        const rows = entries.map(e => [e.date, ...allFactors.map(f => e[f.id] === true ? 'Yes' : e[f.id] === false ? 'No' : '')]);
+        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `health-context-${getTodayKey()}.csv`;
+        a.click();
+      };
+
+      const renderFactor = (factor) => {
+        const value = currentEntry[factor.id];
+        
+        return h('div', { key: factor.id, className: 'metric-card' },
+          h('div', { className: 'metric-label' }, factor.label),
+          h('div', { className: 'toggle-group' },
+            h('button', {
+              className: `toggle-btn ${value === true ? 'active' : ''}`,
+              onClick: () => setCurrentEntry({...currentEntry, [factor.id]: true})
+            }, 'Yes'),
+            h('button', {
+              className: `toggle-btn ${value === false ? 'active-no' : ''}`,
+              onClick: () => setCurrentEntry({...currentEntry, [factor.id]: false})
+            }, 'No')
+          )
+        );
+      };
+
+      if (view === 'settings') {
+        return h('div', { className: 'container' },
+          h('div', { className: 'header' },
+            h('h1', { style: { fontSize: '24px', fontWeight: '600' }}, 'Settings'),
+            h('button', { className: 'nav-btn', onClick: () => setView('today') }, 'Done')
+          ),
+          h('div', { className: 'settings-section' },
+            h('div', { className: 'settings-title' }, 'Data Sync'),
+            isConnected && h('div', { className: 'status-badge' }, 'Connected'),
+            h('input', {
+              type: 'text',
+              className: 'input-field',
+              value: googleSheetUrl,
+              onChange: e => setGoogleSheetUrl(e.target.value),
+              placeholder: 'Google Apps Script URL'
+            }),
+            h('button', { className: 'primary-btn', onClick: connectSheet }, 
+              isConnected ? 'Update Connection' : 'Connect'
+            )
+          ),
+          h('div', { className: 'settings-section' },
+            h('div', { className: 'settings-title' }, 'Export'),
+            h('button', { className: 'secondary-btn', onClick: exportCSV }, 'Export to CSV'),
+            h('div', { style: { fontSize: '12px', color: '#666', marginTop: '8px' }},
+              entries.length + ' entries recorded'
+            )
+          ),
+          h('div', { style: { marginTop: '40px', padding: '16px', background: '#1a1a1a', borderRadius: '8px', fontSize: '13px', color: '#999', lineHeight: '1.6' }},
+            h('div', { style: { fontWeight: '600', color: '#fff', marginBottom: '8px' }}, 'About This Tracker'),
+            'This tracks lifestyle factors that affect your Apple Health metrics but aren\'t captured automatically. Combine this data with your biometrics to understand patterns in sleep quality, recovery, and performance.'
+          )
+        );
+      }
+
+      if (view === 'history') {
+        return h('div', { className: 'container' },
+          h('div', { className: 'header' },
+            h('h1', { style: { fontSize: '24px', fontWeight: '600' }}, 'History'),
+            h('button', { className: 'nav-btn', onClick: () => setView('today') }, 'Today')
+          ),
+          entries.length === 0
+            ? h('div', { style: { textAlign: 'center', color: '#666', padding: '60px 20px' }}, 'No entries yet')
+            : entries.sort((a,b) => b.date.localeCompare(a.date)).map(entry => {
+                const allFactors = Object.values(factors).flat();
+                const yesFactors = allFactors.filter(f => entry[f.id] === true);
+                
+                return h('div', { key: entry.date, className: 'history-item' },
+                  h('div', { className: 'history-date' }, 
+                    new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  ),
+                  h('div', { className: 'history-data' },
+                    yesFactors.length > 0
+                      ? yesFactors.map((f, i) => h('div', { key: f.id }, '• ' + f.label))
+                      : h('div', { style: { color: '#666' }}, 'No factors logged')
+                  )
+                );
+              })
+        );
+      }
+
+      return h('div', { className: 'container' },
+        h('div', { className: 'header' },
+          h('div', { className: 'date' }, 
+            new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          ),
+          h('div', { className: 'nav' },
+            h('button', { className: 'nav-btn', onClick: () => setView('history') }, 'History'),
+            h('button', { className: 'nav-btn', onClick: () => setView('settings') }, 'Settings')
+          )
+        ),
+        
+        h('div', { className: 'section' },
+          h('div', { className: 'section-title' }, 'Sleep Context'),
+          factors.sleep.map(renderFactor)
+        ),
+        
+        h('div', { className: 'section' },
+          h('div', { className: 'section-title' }, 'Recovery Factors'),
+          factors.recovery.map(renderFactor)
+        ),
+        
+        h('div', { className: 'section' },
+          h('div', { className: 'section-title' }, 'Activity Context'),
+          factors.activity.map(renderFactor)
+        ),
+        
+        h('div', { className: 'section' },
+          h('div', { className: 'section-title' }, 'Wellbeing Practices'),
+          factors.wellbeing.map(renderFactor)
+        ),
+        
+        h('button', { className: 'save-btn', onClick: saveEntry }, 'Save Entry')
+      );
+    }
+
+    ReactDOM.render(React.createElement(HealthContext), document.getElementById('root'));
+  </script>
+</body>
+</html>
