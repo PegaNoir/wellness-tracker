@@ -3,41 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#3B82F6">
+  <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Wellness Tracker</title>
+  <title>Health Tracker</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #000; color: #fff; }
+    .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+    .date { font-size: 14px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+    .nav { display: flex; gap: 10px; }
+    .nav-btn { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; }
+    .nav-btn:hover { background: #2a2a2a; }
+    .metric-card { background: #1a1a1a; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .metric-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .metric-title { font-size: 13px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+    .metric-value { font-size: 32px; font-weight: 600; }
+    .recovery-green { color: #00d46a; }
+    .strain-yellow { color: #ffd700; }
+    .sleep-blue { color: #00a8ff; }
+    .range-input { width: 100%; height: 6px; background: #333; border-radius: 3px; appearance: none; outline: none; }
+    .range-input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; background: #fff; border-radius: 50%; cursor: pointer; }
+    .range-input::-moz-range-thumb { width: 20px; height: 20px; background: #fff; border-radius: 50%; cursor: pointer; border: none; }
+    .toggle-group { display: flex; gap: 8px; }
+    .toggle-btn { flex: 1; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; cursor: pointer; font-size: 14px; color: #999; transition: all 0.2s; }
+    .toggle-btn.active { background: #00d46a; color: #000; border-color: #00d46a; font-weight: 600; }
+    .toggle-btn.active-no { background: #ff4444; color: #fff; border-color: #ff4444; }
+    .number-input { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 16px; }
+    .save-btn { width: 100%; padding: 16px; background: #00d46a; color: #000; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 20px; }
+    .save-btn:hover { background: #00e077; }
+    .history-item { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .history-date { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .history-data { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px; color: #999; }
+    .history-data span { color: #fff; }
+    .settings-section { margin-bottom: 24px; }
+    .settings-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 12px; }
+    .input-field { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; margin-bottom: 12px; }
+    .primary-btn { width: 100%; padding: 12px; background: #00d46a; color: #000; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .secondary-btn { width: 100%; padding: 12px; background: #2a2a2a; color: #fff; border: 1px solid #333; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .status-badge { display: inline-block; padding: 4px 12px; background: #2a2a2a; border-radius: 12px; font-size: 12px; color: #00d46a; margin-bottom: 12px; }
+  </style>
 </head>
 <body>
   <div id="root"></div>
   
   <script>
-    // No Babel - Pure JavaScript version
     const { useState, useEffect, createElement: h } = React;
     
-    function WellnessTracker() {
+    function HealthTracker() {
       const [entries, setEntries] = useState([]);
       const [currentEntry, setCurrentEntry] = useState({});
       const [view, setView] = useState('today');
       const [googleSheetUrl, setGoogleSheetUrl] = useState('');
       const [isConnected, setIsConnected] = useState(false);
-      const [showSettings, setShowSettings] = useState(false);
 
-      const attributes = [
-        { id: 'sleep_own_bed', name: 'Slept in own bed', type: 'boolean' },
-        { id: 'sleep_quality', name: 'Sleep quality (1-10)', type: 'number' },
-        { id: 'alcohol', name: 'Consumed alcohol', type: 'boolean' },
-        { id: 'exercise', name: 'Exercised today', type: 'boolean' },
-        { id: 'caffeine', name: 'Consumed caffeine', type: 'boolean' },
-        { id: 'water_intake', name: 'Water intake (glasses)', type: 'number' },
-        { id: 'mood', name: 'Overall mood (1-10)', type: 'number' },
-        { id: 'stress_level', name: 'Stress level (1-10)', type: 'number' }
+      const metrics = [
+        { id: 'recovery', name: 'Recovery', type: 'scale', min: 0, max: 100, unit: '%', color: 'recovery-green', category: 'Recovery Score' },
+        { id: 'hrv', name: 'HRV', type: 'number', unit: 'ms', color: 'recovery-green', category: 'Heart Rate Variability' },
+        { id: 'rhr', name: 'Resting HR', type: 'number', unit: 'bpm', color: 'recovery-green', category: 'Resting Heart Rate' },
+        { id: 'sleep_hours', name: 'Sleep', type: 'scale', min: 0, max: 12, unit: 'hrs', color: 'sleep-blue', category: 'Hours Slept' },
+        { id: 'sleep_quality', name: 'Sleep Quality', type: 'scale', min: 0, max: 100, unit: '%', color: 'sleep-blue', category: 'Sleep Performance' },
+        { id: 'sleep_debt', name: 'Sleep Debt', type: 'scale', min: 0, max: 5, unit: 'hrs', color: 'sleep-blue', category: 'Sleep Need' },
+        { id: 'strain', name: 'Strain', type: 'scale', min: 0, max: 21, unit: '', color: 'strain-yellow', category: 'Day Strain' },
+        { id: 'calories', name: 'Calories', type: 'number', unit: 'kcal', color: 'strain-yellow', category: 'Burned Today' },
+        { id: 'workout', name: 'Workout', type: 'boolean', category: 'Training Today' },
+        { id: 'alcohol', name: 'Alcohol', type: 'boolean', category: 'Consumption' },
+        { id: 'stress', name: 'Stress', type: 'scale', min: 0, max: 100, unit: '%', category: 'Stress Level' },
       ];
 
       useEffect(() => {
-        const saved = localStorage.getItem('wellnessEntries');
+        const saved = localStorage.getItem('healthEntries');
         if (saved) setEntries(JSON.parse(saved));
         const savedUrl = localStorage.getItem('googleSheetUrl');
         if (savedUrl) {
@@ -54,93 +91,136 @@
         const updated = entries.filter(e => e.date !== today);
         updated.push(newEntry);
         setEntries(updated);
-        localStorage.setItem('wellnessEntries', JSON.stringify(updated));
+        localStorage.setItem('healthEntries', JSON.stringify(updated));
         
         if (isConnected && googleSheetUrl) {
+          const row = [today, ...metrics.map(m => currentEntry[m.id] || '')];
           fetch(googleSheetUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ values: [[today, ...attributes.map(a => currentEntry[a.id] || '')]] })
+            body: JSON.stringify({ values: [row] })
           }).catch(console.error);
         }
         
         setCurrentEntry({});
-        alert('Entry saved!');
+        alert('Entry saved');
       };
 
       const connectSheet = () => {
         if (googleSheetUrl.trim()) {
           localStorage.setItem('googleSheetUrl', googleSheetUrl);
           setIsConnected(true);
-          alert('Connected to Google Sheets!');
         }
       };
 
       const exportCSV = () => {
-        const headers = ['Date', ...attributes.map(a => a.name)];
-        const rows = entries.map(e => [e.date, ...attributes.map(a => e[a.id] || '')]);
+        const headers = ['Date', ...metrics.map(m => m.name)];
+        const rows = entries.map(e => [e.date, ...metrics.map(m => e[m.id] || '')]);
         const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `wellness-${getTodayKey()}.csv`;
+        a.download = `health-${getTodayKey()}.csv`;
         a.click();
       };
 
-      if (showSettings) {
-        return h('div', { style: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }},
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }},
-            h('h2', { style: { fontSize: '24px', fontWeight: 'bold' }}, 'Settings'),
-            h('button', {
-              onClick: () => setShowSettings(false),
-              style: { padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, 'Done')
+      const renderMetric = (metric) => {
+        const value = currentEntry[metric.id];
+        
+        return h('div', { key: metric.id, className: 'metric-card' },
+          h('div', { className: 'metric-header' },
+            h('div', { className: 'metric-title' }, metric.category)
           ),
-          h('div', { style: { padding: '20px', background: '#f0fdf4', borderRadius: '8px', marginBottom: '20px' }},
-            h('h3', { style: { fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}, 'Google Sheets Integration'),
+          metric.type === 'boolean'
+            ? h('div', { className: 'toggle-group' },
+                h('button', {
+                  className: `toggle-btn ${value === true ? 'active' : ''}`,
+                  onClick: () => setCurrentEntry({...currentEntry, [metric.id]: true})
+                }, 'Yes'),
+                h('button', {
+                  className: `toggle-btn ${value === false ? 'active-no' : ''}`,
+                  onClick: () => setCurrentEntry({...currentEntry, [metric.id]: false})
+                }, 'No')
+              )
+            : metric.type === 'scale'
+              ? h('div', {},
+                  h('div', { className: `metric-value ${metric.color}` }, 
+                    (value || metric.min) + (metric.unit || '')
+                  ),
+                  h('input', {
+                    type: 'range',
+                    className: 'range-input',
+                    min: metric.min,
+                    max: metric.max,
+                    step: metric.id === 'sleep_hours' || metric.id === 'sleep_debt' ? 0.5 : 1,
+                    value: value || metric.min,
+                    onChange: e => setCurrentEntry({...currentEntry, [metric.id]: parseFloat(e.target.value)})
+                  })
+                )
+              : h('input', {
+                  type: 'number',
+                  className: 'number-input',
+                  value: value || '',
+                  onChange: e => setCurrentEntry({...currentEntry, [metric.id]: e.target.value}),
+                  placeholder: '0'
+                })
+        );
+      };
+
+      if (view === 'settings') {
+        return h('div', { className: 'container' },
+          h('div', { className: 'header' },
+            h('h1', { style: { fontSize: '24px', fontWeight: '600' }}, 'Settings'),
+            h('button', { className: 'nav-btn', onClick: () => setView('today') }, 'Done')
+          ),
+          h('div', { className: 'settings-section' },
+            h('div', { className: 'settings-title' }, 'Data Sync'),
+            isConnected && h('div', { className: 'status-badge' }, 'Connected'),
             h('input', {
               type: 'text',
+              className: 'input-field',
               value: googleSheetUrl,
               onChange: e => setGoogleSheetUrl(e.target.value),
-              placeholder: 'Paste Google Apps Script URL',
-              style: { width: '100%', padding: '10px', border: '2px solid #ccc', borderRadius: '8px', marginBottom: '10px' }
+              placeholder: 'Google Sheets URL'
             }),
-            h('button', {
-              onClick: connectSheet,
-              style: { width: '100%', padding: '12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, isConnected ? 'Connected' : 'Connect')
+            h('button', { className: 'primary-btn', onClick: connectSheet }, 
+              isConnected ? 'Update Connection' : 'Connect'
+            )
           ),
-          h('div', {},
-            h('h3', { style: { fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}, 'Export Data'),
-            h('button', {
-              onClick: exportCSV,
-              style: { padding: '12px 24px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, 'Export CSV')
+          h('div', { className: 'settings-section' },
+            h('div', { className: 'settings-title' }, 'Export'),
+            h('button', { className: 'secondary-btn', onClick: exportCSV }, 'Export to CSV'),
+            h('div', { style: { fontSize: '12px', color: '#666', marginTop: '8px' }},
+              `${entries.length} entries recorded`
+            )
           )
         );
       }
 
       if (view === 'history') {
-        return h('div', { style: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }},
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }},
-            h('h2', { style: { fontSize: '24px', fontWeight: 'bold' }}, 'History'),
-            h('button', {
-              onClick: () => setView('today'),
-              style: { padding: '10px 20px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, 'Back')
+        return h('div', { className: 'container' },
+          h('div', { className: 'header' },
+            h('h1', { style: { fontSize: '24px', fontWeight: '600' }}, 'History'),
+            h('button', { className: 'nav-btn', onClick: () => setView('today') }, 'Today')
           ),
-          entries.length === 0 
-            ? h('p', { style: { textAlign: 'center', color: '#999', padding: '40px' }}, 'No entries yet')
-            : h('div', {},
-                entries.sort((a,b) => b.date.localeCompare(a.date)).map(entry =>
-                  h('div', { key: entry.date, style: { padding: '15px', background: '#f9fafb', borderRadius: '8px', marginBottom: '10px' }},
-                    h('div', { style: { fontWeight: 'bold', marginBottom: '10px' }}, entry.date),
-                    attributes.map(attr => 
-                      entry[attr.id] !== undefined && entry[attr.id] !== null && entry[attr.id] !== '' &&
-                      h('div', { key: attr.id, style: { fontSize: '14px', margin: '5px 0' }},
-                        attr.name + ': ' + (entry[attr.id] === true ? 'Yes' : entry[attr.id] === false ? 'No' : entry[attr.id])
+          entries.length === 0
+            ? h('div', { style: { textAlign: 'center', color: '#666', padding: '60px 20px' }}, 'No data yet')
+            : entries.sort((a,b) => b.date.localeCompare(a.date)).map(entry =>
+                h('div', { key: entry.date, className: 'history-item' },
+                  h('div', { className: 'history-date' }, 
+                    new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  ),
+                  h('div', { className: 'history-data' },
+                    metrics.filter(m => entry[m.id] !== undefined && entry[m.id] !== null && entry[m.id] !== '').map(m =>
+                      h('div', { key: m.id },
+                        m.name + ': ',
+                        h('span', {}, 
+                          entry[m.id] === true ? 'Yes' : 
+                          entry[m.id] === false ? 'No' : 
+                          entry[m.id] + (m.unit || '')
+                        )
                       )
                     )
                   )
@@ -149,85 +229,22 @@
         );
       }
 
-      return h('div', { style: { padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }},
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }},
-          h('h1', { style: { fontSize: '28px', fontWeight: 'bold' }}, 'Daily Wellness Tracker'),
-          h('div', { style: { display: 'flex', gap: '10px' }},
-            h('button', {
-              onClick: () => setView('history'),
-              style: { padding: '10px 20px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, 'History'),
-            h('button', {
-              onClick: () => setShowSettings(true),
-              style: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
-            }, 'Settings')
+      return h('div', { className: 'container' },
+        h('div', { className: 'header' },
+          h('div', { className: 'date' }, 
+            new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          ),
+          h('div', { className: 'nav' },
+            h('button', { className: 'nav-btn', onClick: () => setView('history') }, 'History'),
+            h('button', { className: 'nav-btn', onClick: () => setView('settings') }, 'Settings')
           )
         ),
-        h('div', { style: { padding: '15px', background: '#f0f9ff', borderLeft: '4px solid #3b82f6', marginBottom: '20px', borderRadius: '4px' }},
-          h('p', {}, new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }))
-        ),
-        attributes.map(attr =>
-          h('div', { key: attr.id, style: { padding: '15px', background: 'white', borderRadius: '8px', marginBottom: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }},
-            h('label', { style: { display: 'block', fontWeight: 'bold', marginBottom: '10px' }}, attr.name),
-            attr.type === 'boolean'
-              ? h('div', { style: { display: 'flex', gap: '10px' }},
-                  h('button', {
-                    onClick: () => setCurrentEntry({...currentEntry, [attr.id]: true}),
-                    style: {
-                      flex: 1,
-                      padding: '12px',
-                      background: currentEntry[attr.id] === true ? '#22c55e' : '#f3f4f6',
-                      color: currentEntry[attr.id] === true ? 'white' : '#6b7280',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }
-                  }, 'Yes'),
-                  h('button', {
-                    onClick: () => setCurrentEntry({...currentEntry, [attr.id]: false}),
-                    style: {
-                      flex: 1,
-                      padding: '12px',
-                      background: currentEntry[attr.id] === false ? '#ef4444' : '#f3f4f6',
-                      color: currentEntry[attr.id] === false ? 'white' : '#6b7280',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }
-                  }, 'No')
-                )
-              : h('input', {
-                  type: 'number',
-                  value: currentEntry[attr.id] || '',
-                  onChange: e => setCurrentEntry({...currentEntry, [attr.id]: e.target.value}),
-                  placeholder: 'Enter value',
-                  min: attr.id.includes('quality') || attr.id.includes('mood') || attr.id.includes('stress') ? '1' : '0',
-                  max: attr.id.includes('quality') || attr.id.includes('mood') || attr.id.includes('stress') ? '10' : undefined,
-                  style: { width: '100%', padding: '12px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '16px' }
-                })
-          )
-        ),
-        h('button', {
-          onClick: saveEntry,
-          style: {
-            width: '100%',
-            padding: '16px',
-            background: 'linear-gradient(to right, #22c55e, #3b82f6)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            marginTop: '20px'
-          }
-        }, 'Save Entry')
+        metrics.map(renderMetric),
+        h('button', { className: 'save-btn', onClick: saveEntry }, 'Save Entry')
       );
     }
 
-    ReactDOM.render(React.createElement(WellnessTracker), document.getElementById('root'));
+    ReactDOM.render(React.createElement(HealthTracker), document.getElementById('root'));
   </script>
 </body>
 </html>
