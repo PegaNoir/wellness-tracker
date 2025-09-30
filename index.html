@@ -100,17 +100,29 @@
         
         if (isConnected && googleSheetUrl) {
           const allFactors = Object.values(factors).flat();
-          const row = [today, ...allFactors.map(f => currentEntry[f.id] !== undefined ? (currentEntry[f.id] ? 'Yes' : 'No') : '')];
+          const row = [today, ...allFactors.map(f => {
+            if (currentEntry[f.id] === undefined) return '';
+            return currentEntry[f.id] ? 'Yes' : 'No';
+          })];
+          
           fetch(googleSheetUrl, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ values: [row] })
-          }).catch(console.error);
+          })
+          .then(response => {
+            console.log('Sync successful');
+          })
+          .catch(error => {
+            console.error('Sync error:', error);
+            alert('Saved locally. Sync failed - check connection.');
+          });
         }
         
         setCurrentEntry({});
-        alert('Context saved');
+        alert(isConnected ? 'Saved & synced to Google Sheets!' : 'Saved locally');
       };
 
       const connectSheet = () => {
